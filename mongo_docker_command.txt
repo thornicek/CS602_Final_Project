@@ -1,0 +1,8 @@
+docker run -d -p 27017:27017 --name mongo_finalP -v mongo-data:/data/db -e MONGODB_INITDB_ROOT_USERNAME=thornicek -e MONGODB_INITDB_ROOT_PASSWORD=secret mongo:latest
+
+
+docker exec -it mongo_finalP bash
+
+then type mongo and enter
+
+db.createUser({user: "thornicek", pwd: "secret", roles: ["userAdminAnyDatabase"]})
