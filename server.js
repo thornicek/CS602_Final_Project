@@ -13,16 +13,27 @@ const db_manager = require('./db.js');
 let connectionPromise = db_manager.connectionPromise;
 
 app.engine('handlebars', 
-	engine({defaultLayout: 'main'}));
+	engine({defaultLayout: 'main_paige'}));
 
 app.set('view engine', 'handlebars');
 
 // static resources
 app.use(express.static(__dirname + '/public'));
 
-app.get('/',  (req, res) => {
-	res.json({"message": "success"})
-});
+// get articles from db
+app.get('/', (req, res)=>{
+    connectionPromise.then(client =>{
+        const cursor = client.db("blog_db").collection('article').find({});
+        
+        cursor.toArray().then(results => {
+            for(const element of results){
+                const previewText = element.content.split(' ').slice(0,20).join(' ');
+                element.content = previewText;
+            }
+            res.render("display_blog", {data:results});
+        })
+    })
+})
 
 app.get('/test_mongo', (req, res) => {
     console.log("test_mongo entered");
