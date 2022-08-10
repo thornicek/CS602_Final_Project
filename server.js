@@ -42,6 +42,15 @@ app.get('/', (req, res) => {
         })
     })
 
+// Post comment into db 
+app.post('/post-feedback', function(req, res){
+    connectionPromise
+    .then(client => {
+        return client.db("blog_db").collection('article').insertOne(req.body);
+    });
+    res.send('Data received:\n' + JSON.stringify(req.body));
+});
+
 
 // show "read more" single blog entry
 app.get('/article/:id', (req,res) => {
