@@ -10,6 +10,8 @@ const { engine } = require('express-handlebars');
 
 const db_manager = require('./db.js');
 
+const { ObjectId } = require('mongodb');
+
 let connectionPromise = db_manager.connectionPromise;
 
 app.engine('handlebars', 
@@ -21,19 +23,41 @@ app.set('view engine', 'handlebars');
 app.use(express.static(__dirname + '/public'));
 
 // get articles from db
-app.get('/', (req, res)=>{
-    connectionPromise.then(client =>{
-        const cursor = client.db("blog_db").collection('article').find({});
-        
-        cursor.toArray().then(results => {
-            for(const element of results){
+app.get('/', (req, res) => {
+    connectionPromise
+        .then(client => {
+        return client.db("blog_db").collection('article').find({});
+        })
+        .then(cursor => {
+            return cursor.toArray();
+        })
+        .then(results => {
+            for (const element of results) {
                 const previewText = element.content.split(' ').slice(0,20).join(' ');
                 element.content = previewText;
+                const stringID = element._id.toString();
+                element._id = stringID;
             }
             res.render("display_blog", {data:results});
         })
     })
+
+
+// show "read more" single blog entry
+app.get('/article/:id', (req,res) => {
+    let paramData = req.params;
+    let stringID = paramData.id;
+    connectionPromise
+        .then(client => {
+            return client.db("blog_db").collection('article').findOne({"_id": new ObjectId(stringID)});
+        })
+        .then(result => {
+            console.log("result is:");
+            console.log(result);
+            res.render("display_single_blog", {data: result});
+        })
 })
+
 
 app.get('/test_mongo', (req, res) => {
     console.log("test_mongo entered");
