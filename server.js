@@ -43,12 +43,18 @@ app.get('/', (req, res) => {
     })
 
 // Post comment into db 
-app.post('/post-feedback', function(req, res){
+app.post('/post-feedback/:id', function(req, res){
+    let paramData = req.params;
+    let stringID = paramData.id;
+    console.log("req.body is:")
+    console.log(req.body);
     connectionPromise
     .then(client => {
-        return client.db("blog_db").collection('article').insertOne(req.body);
+        return client.db("blog_db").collection('article').updateOne(
+            {"_id":new ObjectId(stringID)},
+            {$addToSet:{"comments": req.body}});
     });
-    res.send('Data received:\n' + JSON.stringify(req.body));
+   
 });
 
 
@@ -61,8 +67,8 @@ app.get('/article/:id', (req,res) => {
             return client.db("blog_db").collection('article').findOne({"_id": new ObjectId(stringID)});
         })
         .then(result => {
-            console.log("result is:");
-            console.log(result);
+            // console.log("result is:");
+            // console.log(result);
             res.render("display_single_blog", {data: result});
         })
 })
@@ -73,17 +79,17 @@ app.get('/test_mongo', (req, res) => {
     console.log("connectionPromise is:");
     console.log(connectionPromise);
     connectionPromise.then(client => {
-        console.log("promise resoluton");
-        console.log("client is:");
-        console.log(client);
+        // console.log("promise resoluton");
+        // console.log("client is:");
+        // console.log(client);
         const cursor = client.db("test_db").collection("test_collection").find({});
-        console.log("cursor is:");
-        console.log(cursor);
+        // console.log("cursor is:");
+        // console.log(cursor);
         cursor.toArray().then(results => {
-            console.log("results are:");
-            console.log(results);
+            // console.log("results are:");
+            // console.log(results);
             const firstResult = results[0];
-            console.log(`firstResult is ${firstResult}`);
+            // console.log(`firstResult is ${firstResult}`);
             res.json(firstResult);
         })
     })
