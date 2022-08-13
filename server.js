@@ -12,6 +12,7 @@ const db_manager = require('./db.js');
 
 const { ObjectId } = require('mongodb');
 const { application } = require('express');
+const { username } = require('./credentials.js');
 
 let connectionPromise = db_manager.connectionPromise;
 
@@ -25,6 +26,7 @@ app.use(express.static(__dirname + '/public'));
 
 // get articles from db
 app.get('/', (req, res) => {
+    console.log("index function entered");
     connectionPromise
         .then(client => {
         return client.db("blog_db").collection('article').find({});
@@ -41,6 +43,10 @@ app.get('/', (req, res) => {
             }
             res.render("display_blog", {data:results});
         })
+        .catch(error => {
+            console.log("Got an error while fetching articles: ", error);
+        })
+
     })
 
 // Post comment into db 
@@ -49,8 +55,8 @@ app.post('/post-feedback/:id', function(req, res){
     let stringID = paramData.id;
     connectionPromise
     .then(client => {
-        console.log("req.body is:");
-        console.log(req.body);
+        // console.log("req.body is:");
+        // console.log(req.body);
         return client.db("blog_db").collection('article').updateOne(
             {"_id":new ObjectId(stringID)},
             {$addToSet:{comments: req.body}});
@@ -132,13 +138,113 @@ app.get('/api/article/:id', (req,res) =>{
     })
 })
 
+// admin view 
+app.get('/admin', (req, res) => { 
+    connectionPromise
+        .then(client => {
+        return client.db("blog_db").collection('article').find({});
+        })
+        .then(cursor => {
+            return cursor.toArray();
+        })
+        .then(results => {
+            for (const element of results) {
+                const previewText = element.content.split(' ').slice(0,20).join(' ');
+                element.content = previewText;
+                const stringID = element._id.toString();
+                element._id = stringID;
+            }
+            res.render("display_admin_main", {data:results});
+        })
+        .catch(error => {
+            console.log("Got an error while fetching articles: ", error);
+        })
+    })
+// admin single page view
+app.get('/admin/edit/:id', (req, res) => {
+    let paramData = req.params;
+    let stringID = paramData.id;
+    connectionPromise
+    .then(client => {
+        return client.db('blog_db').collection('article').findOne({"_id": new ObjectId(stringID)});
+    })
+    .then(results => {
+        res.render('display_admin_single', {data:results});
+    })
+})
+// admin update article
+app.patch('/admin/update/:id', async (req,res) => {
+    // console.log("/admin/update/:id PATCH entered");
+    let paramData = await req.params;
+    let stringID = paramData.id;
+    // console.log(`stringID is ${stringID}`);
+    let updateTitle = await req.body.title;
+    let updateContent = await req.body.content;
+    // console.log(`stringID ${stringID} updateTitle ${updateTitle}, updateContent ${updateContent}`);
+    if (!(stringID && updateTitle && updateContent)) {
+        res.status(400).send("id, new title and new content must be present!");
+    }
+    connectionPromise
+    .then(client => {
+        return client.db('blog_db').collection('article').updateOne(
+            {"_id": new ObjectId(stringID)},
+            {$set:{title: updateTitle, content: updateContent} 
+            });
+    })
+    .then(result => {
+        console.log("then with result entered, result is: ", result);
+        res.status(204).send();
+    })
+    .catch(error => {
+        console.log("there was an error in PATCH handler: ", error);
+    })
+})
+// admin delete 
+app.delete('/admin/delete/:id', async(req, res)=> {
+    let paramData = await req.params;
+    let stringID = paramData.id;
+    console.log("delete endpoint hit")
+    connectionPromise
+    .then(client => {
+        return client.db('blog_db').collection('article').deleteOne(
+            {"_id": new ObjectId(stringID)}
+        );
+    })
+    .then(result =>{
+        console.log("then with result entered, result is: ", result);
+        res.status(204).send();
+    })
+    .catch(error => {
+        console.log("there was an error in DELETe handler: ", error);
+    })
+})
+// admin render add_new 
+app.get('/admin/add_new', (req,res) => {
+   res.render('display_admin_add');
 
+})
+
+
+// admin add new article
+app.post('/admin/add_new', (req,res) => {
+    newTitle = req.body.title;
+    newContent = req.body.content;
+    connectionPromise
+    .then(client => {
+        return client.db('blog_db').collection('article').insertOne(
+            {title: newTitle, content: newContent
+            });
+    })
+    .then(result => {
+        res.redirect('/')
+    })
+})
 
 // testing connection to db
 app.get('/test_mongo', (req, res) => {
-    console.log("test_mongo entered");
-    console.log("connectionPromise is:");
-    console.log(connectionPromise);
+    // console.log("test_mongo entered");
+    // console.log("connectionPromise is:");
+    // console.log(connectionPromise);
     connectionPromise.then(client => {
         // console.log("promise resoluton");
         // console.log("client is:");

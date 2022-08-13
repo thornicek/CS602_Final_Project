@@ -10,21 +10,29 @@
     <div class="w3-container">
       <p>{{data.content}}</p>
       <div class="w3-row">
-        <div class="w3-col m8 s12">
-          <p><a href="/"><button class="w3-button w3-padding-large w3-white w3-border"><b>Home Page</b></button></a></p>
-        </div>
-        <div class="w3-col m4 w3-hide-small">
-          <p><span class="w3-padding-large w3-right"><b>Comments</b> <span class="w3-tag">0</span></span></p>
-        </div>
         
       </div>
         <!-- Comments form -->
     <form method="POST" action="/post-feedback/{{data._id}}">
-        <label>Name:<input type:"text" name="username" required></label>
+        <label>Name:<br><input type:"text" name="username" required></label>
         <br>
         <label>Comment:<br><textarea name="comment"></textarea></label>
         <br>
         <input type="submit" value="Submit">
-            
+        <br>
+    </form>
+      <!-- END COMMENTS FORM -->
+      <!-- Comments section -->
+      <h5>Comments</h5>
+      {{#each data.comments}}
+      <div style="border:1px solid black;">
+      <h6>{{this.username}}</h6>
+      <p>{{this.comment}}</p>
+      </div>
+      {{/each}}
+
 <!-- END BLOG ENTRIES -->
 </div>
+  <div class="w3-col m8 s12">
+          <p><a href="/"><button class="w3-button w3-padding-large w3-white w3-border"><b>Home Page</b></button></a></p>
+        </div>

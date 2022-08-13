@@ -1,0 +1,63 @@
+
+<!-- Edit Blog entry form -->
+<label>Title:<br><input type:"text" name="title" value='{{data.title}}' size="50" id="titleInput"></label>
+<br>
+<label>Content:<br><textarea type:"text" name="content" rows="10" cols="50" id="contentTxtArea">{{data.content}}</textarea></label>
+<br>
+<button type="button" id="submitBtn">Submit</button>
+<br>
+<button type="button" id="deleteBtn">Delete Blog entry</button>
+
+<script>
+    // send PATCH request to server
+    function sendPatchRequest(id, title, content) {
+        fetch(`/admin/update/${id}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json'
+                },
+            body: JSON.stringify({
+                title: title,
+                content: content
+            }),
+        })
+        .then(response =>{
+            window.location.assign(`/admin`)
+        })
+    }
+    const url = window.location.href;
+    // console.log(`url is ${url}`);
+    const urlArray = url.split("/");
+    // console.log("urlArray is ", urlArray);
+    const id = urlArray[urlArray.length - 1];
+    // console.log(`id is ${id}`);
+    const textArea = document.getElementById("contentTxtArea");
+    const titleInput = document.getElementById("titleInput");
+    const submitBtn = document.getElementById("submitBtn");
+    submitBtn.addEventListener("click", () => {
+        sendPatchRequest(id, titleInput.value, textArea.value)
+        });
+    textArea.addEventListener("input", event => {
+        textArea.value = event.target.value;
+    });
+    titleInput.addEventListener("change", event => {
+        titleInput.value = event.target.value;
+    })
+    // send DELETE request to server
+    function sendDeleteRequest(id){
+        fetch(`/admin/delete/${id}`,{
+            method: 'DELETE'
+        })
+        .then(response =>{
+            window.location.assign(`/admin`)
+        })
+        console.log(`url is ${url}`);
+        console.log("urlArray is ", urlArray);
+        console.log(`id is ${id}`);
+    }
+    const deleteBtn = document.getElementById("deleteBtn");
+    deleteBtn.addEventListener("click", () => {
+        sendDeleteRequest(id)
+    });
+</script>
+<!-- END EDIT BLOG ENTRY FORM -->

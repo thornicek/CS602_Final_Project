@@ -10,6 +10,10 @@ and is wrapped around the whole page content, except for the footer in this exam
 <!-- Grid -->
 <div class="w3-row">
 
+<!-- Add new article btn -->
+<div class="w3-col m8 s12">
+          <p><a href="/admin/add_new"><button class="w3-button w3-padding-large w3-white w3-border"><b>Add new Blog Entry</b></button></a></p></div>
+
 <!-- Blog entries -->
 <div class="w3-col l8 s12">
   <!-- Blog entry -->
@@ -24,7 +28,7 @@ and is wrapped around the whole page content, except for the footer in this exam
       <p>{{this.content}}</p>
       <div class="w3-row">
         <div class="w3-col m8 s12">
-          <p><a href="/article/{{this._id}}"><button class="w3-button w3-padding-large w3-white w3-border"><b>READ MORE »</b></button></a></p>
+          <p><a href="/admin/edit/{{this._id}}"><button class="w3-button w3-padding-large w3-white w3-border"><b>Edit</b></button></a></p>
         </div>
       </div>
     </div>
