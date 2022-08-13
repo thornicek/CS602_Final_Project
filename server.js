@@ -19,6 +19,8 @@ const credentials = require('./credentials.js');
 const auth = require("./auth.js")
 const cookieParser = require("cookie-parser");
 
+const url_module = require("url");
+
 app.use(cookieParser());
 
 let connectionPromise = db_manager.connectionPromise;
@@ -76,6 +78,7 @@ app.get('/article/:id', (req,res) => {
             return client.db("blog_db").collection('article').findOne({"_id": new ObjectId(stringID)});
         })
         .then(result => {
+            result.id = stringID;
             res.render("display_single_blog", {data: result});
         })
 })
@@ -97,13 +100,18 @@ app.get('/test_mongo', (req, res) => {
 })
 
 app.post("/registration_form_handler", async (req, res) => {
-    console.log("registration_form_handler entered");
+    console.log("POST /registration_form_handler");
     let password = req.body.password;
     let email = req.body.email;
     console.log(`email is ${email} and password is ${password}`);
     // check we actually have values for email and password
     if (!(email && password)) {
-        res.status(400).send("Both email and password are required!");
+        return res.redirect(url_module.format({
+            pathname: "/register_admin",
+            query: {
+                "err_msg": "Both email and password are required"
+            }
+        }))
     }
 
     connectionPromise
@@ -112,7 +120,12 @@ app.post("/registration_form_handler", async (req, res) => {
     })
     .then(result => {
         if (result) {
-            res.status(400).send("A user with the given email already exists");
+            return res.redirect(url_module.format({
+                pathname: "/register_admin",
+                query: {
+                    "err_msg": "A user with the given email already exists"
+                }
+            }))
         }
     })
     .catch(error => {
@@ -143,28 +156,44 @@ app.post("/registration_form_handler", async (req, res) => {
 })
 
 app.post("/login_form_handler", async (req, res) => {
-    console.log("login_form_handler entered");
+    console.log("POST /login_form_handler");
     let inputPassword = req.body.password;
     let email = req.body.email;
     console.log(`email is ${email}, password is ${inputPassword}`);
 
     if (!(email && inputPassword)) {
-        res.status(400).send("Both email and password are required!");
+        return res.redirect(url_module.format({
+            pathname: "/login_admin",
+            query: {
+                "err_msg": "Both email and password are required"
+            }
+        }))
     }
 
     let client = await connectionPromise;
     let result = await client.db("blog_db").collection("admin_user").findOne({"email": email});
-    if (!result) {
-        res.status(400).send("No user with the given email exists");
-    }
     console.log("result is ", result);
+    if (result == null) {
+        return res.redirect(url_module.format({
+            pathname: "/login_admin",
+            query: {
+                "err_msg": "No user with given email exists"
+            }
+        }))
+    }
+    
     let dbPasswordHash = result.password;
     console.log(`dbPasswordHash is ${dbPasswordHash}`);
     let hashesMatch = await bcrypt.compare(inputPassword, dbPasswordHash);
     console.log(`hashesMatch is ${hashesMatch}`);
     
     if (!hashesMatch) {
-        res.status(400).send("Wrong password!");
+        return res.redirect(url_module.format({
+            pathname: "/login_admin",
+            query: {
+                "err_msg": "Wrong password"
+            }
+        }))
     }
 
     const authToken = jwt.sign(
@@ -181,15 +210,21 @@ app.post("/login_form_handler", async (req, res) => {
 })
 
 app.get("/login_admin", (req, res) => {
-    res.render("login_form");
+    console.log("GET /login_admin");
+    let err_msg = req.query.err_msg;
+    console.log(`err_msg is ${err_msg}`);
+    res.render("login_form", {err_msg: err_msg});
 })
 
 app.get("/register_admin", (req, res) => {
-    res.render("registration_form");
+    console.log("GET /register_admin");
+    let err_msg = req.query.err_msg;
+    console.log(`err_msg is ${err_msg}`);
+    res.render("registration_form", {err_msg: err_msg});
 })
 
 app.get("/protected", auth, (req, res) => {
-    console.log("/protected entered");
+    console.log("GET /protected");
     console.log(`req.user is ${req.user}`);
     if (req.user) {
         res.json({"login": "success"});
