@@ -62,8 +62,7 @@ app.post('/post-feedback/:id', function(req, res){
             {$addToSet:{comments: req.body}});
     })
     .then(result => {
-        result._id = result._id.toString();
-        res.render("display_single_blog", {data: result})
+        res.redirect(`/article/${stringID}`)
     })
     
 });
