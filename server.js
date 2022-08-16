@@ -217,14 +217,14 @@ app.delete('/admin/delete/:id', async(req, res)=> {
         console.log("there was an error in DELETe handler: ", error);
     })
 })
-// admin render add_new 
+// admin render add new article
 app.get('/admin/add_new', (req,res) => {
    res.render('display_admin_add');
 
 })
 
 
-// admin add new article
+// admin add new article 
 app.post('/admin/add_new', (req,res) => {
     newTitle = req.body.title;
     newContent = req.body.content;
@@ -238,6 +238,28 @@ app.post('/admin/add_new', (req,res) => {
         res.redirect('/')
     })
 })
+
+// user render new article handlebar
+app.get('/user/add_new', (req,res) => {
+    res.render('display_user_add');
+})
+
+// user add new article
+app.post('/user/add_new', (req,res) =>{
+    user = req.body.username;
+    newTitle = req.body.title;
+    newContent = req.body.content;
+    connectionPromise
+    .then(client => {
+        return client.db('blog_db').collection('article').insertOne({
+            username: username, title: newTitle, content: newContent
+        });
+    })
+    .then(result => {
+        res.redirect('/')
+    })
+})
+
 
 // testing connection to db
 app.get('/test_mongo', (req, res) => {
