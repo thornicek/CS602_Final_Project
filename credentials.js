@@ -3,5 +3,6 @@ module.exports = {
 	username: 'thornicek',
 	password: 'secret',
 	database: 'admin',
-	port: 27017
+	port: 27017,
+	page_login_key: 'TZ3BGE0R6M2VEZQ2TEPW'
 }
