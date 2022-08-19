@@ -5,4 +5,6 @@ docker exec -it mongo_finalP bash
 
 then type mongo and enter
 
+use admin
+
 db.createUser({user: "thornicek", pwd: "secret", roles: ["userAdminAnyDatabase"]})

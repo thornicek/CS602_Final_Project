@@ -26,6 +26,7 @@ const url_module = require("url");
 app.use(cookieParser());
 
 let connectionPromise = db_manager.connectionPromise;
+let initDB = db_manager.initDB;
 
 app.engine('handlebars', 
 	engine({defaultLayout: 'main_paige'}));
@@ -37,7 +38,7 @@ app.use(express.static(__dirname + '/public'));
 
 // get articles from db
 app.get('/', (req, res) => {
-    console.log("index function entered");
+    console.log("GET /");
     connectionPromise
         .then(client => {
         return client.db("blog_db").collection('article').find({});
@@ -46,6 +47,7 @@ app.get('/', (req, res) => {
             return cursor.toArray();
         })
         .then(results => {
+            console.log(`${results.length} articles found to be displayed`);
             for (const element of results) {
                 const previewText = element.content.split(' ').slice(0,20).join(' ');
                 element.content = previewText;
@@ -61,13 +63,13 @@ app.get('/', (req, res) => {
     })
 
 // Post comment into db 
-app.post('/post-feedback/:id', function(req, res){
+app.post('/post-feedback/:id', (req, res) => {
+    console.log("POST /post-feedback/:id");
     let paramData = req.params;
     let stringID = paramData.id;
+    console.log(`stringID = ${stringID}`);
     connectionPromise
     .then(client => {
-        // console.log("req.body is:");
-        // console.log(req.body);
         return client.db("blog_db").collection('article').updateOne(
             {"_id":new ObjectId(stringID)},
             {$addToSet:{comments: req.body}});
@@ -75,26 +77,35 @@ app.post('/post-feedback/:id', function(req, res){
     .then(result => {
         res.redirect(`/article/${stringID}`)
     })
+    .catch(error => {
+        console.log(`An error occured while saving comment: ${error}`);
+    })
     
 });
 
 
 // show "read more" single blog entry
-app.get('/article/:id', (req,res) => {
+app.get('/article/:id', (req, res) => {
+    console.log("GET /article/:id");
     let paramData = req.params;
     let stringID = paramData.id;
+    console.log(`stringID = ${stringID}`);
     connectionPromise
-        .then(client => {
-            return client.db("blog_db").collection('article').findOne({"_id": new ObjectId(stringID)});
-        })
-        .then(result => {
-            result.id = stringID;
-            res.render("display_single_blog", {data: result});
-        })
+    .then(client => {
+        return client.db("blog_db").collection('article').findOne({"_id": new ObjectId(stringID)});
+    })
+    .then(result => {
+        result.id = stringID;
+        res.render("display_single_blog", {data: result});
+    })
+    .catch(error => {
+        console.log(`An error occured while fetching artcile: ${error}`);
+    })
 })
 
 // endpoint to show all articles in XML and json
-app.get('/api/article', (req,res) =>{
+app.get('/api/article', (req, res) => {
+    console.log("GET /api/article");
     connectionPromise
     .then(client =>{
         return client.db('blog_db').collection('article').find({});
@@ -104,38 +115,38 @@ app.get('/api/article', (req,res) =>{
     })
     .then(result => {
         res.format({
-            'application/json':function(){
+        'application/json': () => {
                 res.json(result)
             },
-        'application/xml':function(){
-            // console.log("Entered function for XML");
+        'application/xml': () => {
             let blogXml = `<?xml version="1.0"?>\n <article>`
-            // console.log("before for loop"); 
-            for(const entry of result){
+            for (const entry of result){
                 blogXml += `\n <title>${entry.title}</title> \n <content>${entry.content}</content>`
             }
-            // console.log("for loop closed");
             blogXml += `\n </article>`
-            // console.log("XML closed");
-            // console.log(blogXml);
             res.type('application/xml');
             res.send(blogXml);
         } 
         })
     })
+    .catch(error => {
+        console.log(`An error occured while fetching articles and converting to JSON/XML: ${error}`);
+    })
 })
 
 // endpoint to show a single article
-app.get('/api/article/:id', (req,res) =>{
+app.get('/api/article/:id', auth, (req, res) => {
+    console.log("GET /api/article/:id");
     let paramData = req.params;
     let stringID = paramData.id;
+    console.log(`stringID = ${stringID}`);
     connectionPromise
     .then(client=>{
         return client.db('blog_db').collection('article').findOne({"_id": new ObjectId(stringID)});
     })
     .then(result => {
         res.format({
-            'application/json': function(){
+        'application/json': function(){
                 res.json(result)
             },
         'application/xml': function(){
@@ -148,56 +159,108 @@ app.get('/api/article/:id', (req,res) =>{
 })
 
 // admin view 
-app.get('/admin', (req, res) => { 
-    connectionPromise
-        .then(client => {
-        return client.db("blog_db").collection('article').find({});
-        })
-        .then(cursor => {
-            return cursor.toArray();
-        })
-        .then(results => {
-            for (const element of results) {
-                const previewText = element.content.split(' ').slice(0,20).join(' ');
-                element.content = previewText;
-                const stringID = element._id.toString();
-                element._id = stringID;
+app.get('/admin', auth, (req, res) => {
+    console.log("GET /admin");
+    if (!req.user) {
+        console.log("Unauthenticated user attempted to access admin page");
+        return res.redirect(url_module.format({
+            pathname: "/login",
+            query: {
+                "err_msg": "You must be logged in to view the admin page"
             }
-            res.render("display_admin_main", {data:results});
-        })
-        .catch(error => {
-            console.log("Got an error while fetching articles: ", error);
-        })
-    })
-// admin single page view
-app.get('/admin/edit/:id', (req, res) => {
-    let paramData = req.params;
-    let stringID = paramData.id;
+        }))
+    }
+    console.log(`admin page for user ${req.user}`);
+    
     connectionPromise
     .then(client => {
-        return client.db('blog_db').collection('article').findOne({"_id": new ObjectId(stringID)});
+        // for admin display all articles, for other users only display their articles
+        if (req.user === credentials.admin_email) {
+            return client.db("blog_db").collection('article').find({});
+        }
+        else {
+            return client.db("blog_db").collection('artcile').find({username: req.user});
+        }
+    })
+    .then(cursor => {
+        return cursor.toArray();
     })
     .then(results => {
-        res.render('display_admin_single', {data:results});
+        for (const element of results) {
+            const previewText = element.content.split(' ').slice(0,20).join(' ');
+            element.content = previewText;
+            const stringID = element._id.toString();
+            element._id = stringID;
+        }
+        res.render("display_admin_main", {data:results});
+    })
+    .catch(error => {
+        console.log("Got an error while fetching articles: ", error);
     })
 })
-// admin update article
-app.patch('/admin/update/:id', async (req,res) => {
-    // console.log("/admin/update/:id PATCH entered");
-    let paramData = await req.params;
+// admin single page view
+app.get('/admin/edit/:id', auth, async (req, res) => {
+    console.log("GET /admin/edit/:id");
+    if (!req.user) {
+        console.log("Unauthenticated user attempted to access admin edit single article page");
+        return res.redirect(url_module.format({
+            pathname: "/login",
+            query: {
+                "err_msg": "You must be logged in to view the admin page"
+            }
+        }))
+    }
+    console.log(`edit article page for user ${user}`);
+    let paramData = req.params;
     let stringID = paramData.id;
-    // console.log(`stringID is ${stringID}`);
+    console.log(`stringID is ${stringID}`);
+    let client = await connectionPromise;
+    let article = await client.db('blog_db').collection('article').findOne({"_id": new ObjectId(stringID)});
+    if (req.user === credentials.admin_email || req.user === article.username)
+    {
+        res.render('display_admin_single', {data:article});
+    } else {
+        return res.redirect(url_module.format({
+            pathname: "/login",
+            query: {
+                "err_msg": "You must be logged as the articles author or blog admin to view this page."
+            }
+        }))
+    }
+})
+// admin update article
+app.patch('/admin/update/:id', auth, async (req,res) => {
+    console.log("/admin/update/:id PATCH entered");
+    if (!req.user) {
+        console.log("Unauthenticated user attempted to update article");
+        return res.redirect(url_module.format({
+            pathname: "/login",
+            query: {
+                "err_msg": "You must be logged in to view the admin page"
+            }
+        }))
+    }
+    let paramData = req.params;
+    let stringID = paramData.id;
     let updateTitle = await req.body.title;
     let updateContent = await req.body.content;
-    // console.log(`stringID ${stringID} updateTitle ${updateTitle}, updateContent ${updateContent}`);
     if (!(stringID && updateTitle && updateContent)) {
         res.status(400).send("id, new title and new content must be present!");
     }
+    console.log(`stringID = ${stringID}, updateTitle=${updateTitle}, updateContent=${updateContent}`);
+
+    let client = await connectionPromise;
+    let article = await client.db("blog_db").collection("article").findOne({"_id": new ObjectId(stringID)});
+    if (req.user === credentials.admin_email || req.user === article.username) {
+        // TODO finish off this function..considering adding try/catch blocks here and 
+        // in other async/await database operations
+    }
+
     connectionPromise
     .then(client => {
         return client.db('blog_db').collection('article').updateOne(
             {"_id": new ObjectId(stringID)},
-            {$set:{title: updateTitle, content: updateContent} 
+            {$set: {title: updateTitle, content: updateContent} 
             });
     })
     .then(result => {
@@ -212,7 +275,6 @@ app.patch('/admin/update/:id', async (req,res) => {
 app.delete('/admin/delete/:id', async(req, res)=> {
     let paramData = await req.params;
     let stringID = paramData.id;
-    console.log("delete endpoint hit")
     connectionPromise
     .then(client => {
         return client.db('blog_db').collection('article').deleteOne(
@@ -228,7 +290,7 @@ app.delete('/admin/delete/:id', async(req, res)=> {
     })
 })
 // admin render add new article
-app.get('/admin/add_new', (req,res) => {
+app.get('/admin/add_new', auth, (req, res) => {
    res.render('display_admin_add');
 
 })
@@ -250,7 +312,7 @@ app.post('/admin/add_new', (req,res) => {
 })
 
 // user render new article handlebar
-app.get('/user/add_new', (req,res) => {
+app.get('/user/add_new', atuh, (req,res) => {
     res.render('display_user_add');
 })
 
@@ -273,17 +335,22 @@ app.post('/user/add_new', (req,res) =>{
 
 // testing connection to db
 app.get('/test_mongo', (req, res) => {
-    // console.log("test_mongo entered");
-    // console.log("connectionPromise is:");
-    // console.log(connectionPromise);
+    console.log("GET /test_mongo")
     connectionPromise.then(client => {
-        const cursor = client.db("test_db").collection("test_collection").find({});
-        cursor.toArray().then(results => {
-            const firstResult = results[0];
-            res.json(firstResult);
-        })
+        return client.db("test_db").collection("test_collection").find({});
     })
-
+    .then(cursor => {
+        return cursor.toArray();
+    })
+    .then(resultsArray => {
+        const firstResult = resultsArray[0];
+        console.log(`test collection result: ${firstResult}`);
+        res.json(firstResult);
+    })
+    .catch(error => {
+        console.error(`An error occured on /test_mongo: ${error}`);
+        res.json({result: "fail"});
+    })
     
 })
 
@@ -423,5 +490,6 @@ app.get("/protected", auth, (req, res) => {
 })
 
 app.listen(3000, () => {
+    initDB();
     console.log('http://localhost:3000');
   });
