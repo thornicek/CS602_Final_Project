@@ -21,9 +21,9 @@ and is wrapped around the whole page content, except for the footer in this exam
   {{#each data}}
   <div class="w3-card-4 w3-margin w3-white">
     <div class="w3-container">
-      <h3><b></b></h3>
-      <h5>{{this.title}} <span class="w3-opacity">April 7, 2014</span></h5>
+      <h5>{{this.title}}</h5>
     </div>
+    <div class="w3-container">by {{this.username}}</div>
 
     <div class="w3-container">
       <p>{{this.content}}</p>

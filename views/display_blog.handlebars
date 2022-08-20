@@ -9,19 +9,24 @@ and is wrapped around the whole page content, except for the footer in this exam
 
 <!-- Grid -->
 <div class="w3-row">
-<!-- Add new article btn -->
+<!-- Register btn -->
 <div class="w3-col m8 s12">
-          <p><a href="/user/add_new"><button class="w3-button w3-padding-large w3-white w3-border"><b>Add new Blog Entry</b></button></a></p>
+          <p><a href="/register_admin"><button class="w3-button w3-padding-large w3-white w3-border"><b>Register</b></button></a></p>
 </div>
+<!-- Login btn -->
+<div class="w3-col m8 s12">
+          <p><a href="/login_admin"><button class="w3-button w3-padding-large w3-white w3-border"><b>Login</b></button></a></p>
+</div>
+
 <!-- Blog entries -->
 <div class="w3-col l8 s12">
   <!-- Blog entry -->
   {{#each data}}
   <div class="w3-card-4 w3-margin w3-white">
     <div class="w3-container">
-      <h3><b></b></h3>
-      <h5>{{this.title}} <span class="w3-opacity">April 7, 2014</span></h5>
+      <h5>{{this.title}}</h5>
     </div>
+    <div class="w3-container">by {{this.username}}</div>
 
     <div class="w3-container">
       <p>{{this.content}}</p>
@@ -30,7 +35,7 @@ and is wrapped around the whole page content, except for the footer in this exam
           <p><a href="/article/{{this._id}}"><button class="w3-button w3-padding-large w3-white w3-border"><b>READ MORE »</b></button></a></p>
         </div>
         <div class="w3-col m4 w3-hide-small">
-          <p><span class="w3-padding-large w3-right"><b>Likes</b> <span class="w3-tag">0</span></span><span class="w3-padding-large w3-right"><b>Comments</b> <span class="w3-tag">0</span></span></p>
+          <p><span class="w3-padding-large w3-right"><b>Comments</b> <span class="w3-tag">{{this.comments.length}}</span></span></p>
         </div>
       </div>
     </div>

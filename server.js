@@ -156,6 +156,9 @@ app.get('/api/article/:id', auth, (req, res) => {
         }
         })
     })
+    .catch(error => {
+        console.log(`An error occured while fetching single article and converting to JSON/XML: ${error}`);
+    })
 })
 
 // admin view 
@@ -170,16 +173,16 @@ app.get('/admin', auth, (req, res) => {
             }
         }))
     }
-    console.log(`admin page for user ${req.user}`);
+    console.log(`admin page for user ${req.user.email}`);
     
     connectionPromise
     .then(client => {
         // for admin display all articles, for other users only display their articles
-        if (req.user === credentials.admin_email) {
+        if (req.user.email === credentials.admin_email) {
             return client.db("blog_db").collection('article').find({});
         }
         else {
-            return client.db("blog_db").collection('artcile').find({username: req.user});
+            return client.db("blog_db").collection('artcile').find({username: req.user.email});
         }
     })
     .then(cursor => {
@@ -206,17 +209,23 @@ app.get('/admin/edit/:id', auth, async (req, res) => {
         return res.redirect(url_module.format({
             pathname: "/login",
             query: {
-                "err_msg": "You must be logged in to view the admin page"
+                "err_msg": "You must be logged in to edit an article"
             }
         }))
     }
-    console.log(`edit article page for user ${user}`);
+    console.log(`req.user.email is ${req.user.email}`);
     let paramData = req.params;
     let stringID = paramData.id;
     console.log(`stringID is ${stringID}`);
-    let client = await connectionPromise;
-    let article = await client.db('blog_db').collection('article').findOne({"_id": new ObjectId(stringID)});
-    if (req.user === credentials.admin_email || req.user === article.username)
+    let article;
+    try {
+        let client = await connectionPromise;
+        article = await client.db('blog_db').collection('article').findOne({"_id": new ObjectId(stringID)});
+    } catch (error) {
+        console.log(`An error occured while fetching article: ${error}`);
+    }
+    
+    if (req.user.email === credentials.admin_email || req.user.email === article.username)
     {
         res.render('display_admin_single', {data:article});
     } else {
@@ -230,16 +239,17 @@ app.get('/admin/edit/:id', auth, async (req, res) => {
 })
 // admin update article
 app.patch('/admin/update/:id', auth, async (req,res) => {
-    console.log("/admin/update/:id PATCH entered");
+    console.log("PATCH /admin/update/:id");
     if (!req.user) {
         console.log("Unauthenticated user attempted to update article");
         return res.redirect(url_module.format({
             pathname: "/login",
             query: {
-                "err_msg": "You must be logged in to view the admin page"
+                "err_msg": "You must be logged in to edit an article"
             }
         }))
     }
+    console.log(`req.user.email is ${req.user.email}`);
     let paramData = req.params;
     let stringID = paramData.id;
     let updateTitle = await req.body.title;
@@ -248,88 +258,113 @@ app.patch('/admin/update/:id', auth, async (req,res) => {
         res.status(400).send("id, new title and new content must be present!");
     }
     console.log(`stringID = ${stringID}, updateTitle=${updateTitle}, updateContent=${updateContent}`);
-
-    let client = await connectionPromise;
-    let article = await client.db("blog_db").collection("article").findOne({"_id": new ObjectId(stringID)});
-    if (req.user === credentials.admin_email || req.user === article.username) {
-        // TODO finish off this function..considering adding try/catch blocks here and 
-        // in other async/await database operations
+    try {
+        let client = await connectionPromise;
+        let article = await client.db("blog_db").collection("article").findOne({"_id": new ObjectId(stringID)});
+        if (req.user.email === credentials.admin_email || req.user.email === article.username) {
+            let updateResult = await client.db("blog_db").collection("article").updateOne(
+                {"_id": new ObjectId(stringID)},
+                {$set: {title: updateTitle, content: updateContent}}
+            );
+            console.log(`updateResult is ${updateResult}`);
+            return res.status(204).send();
+        } else {
+            return res.redirect(url_module.format({
+                pathname: "/login",
+                query: {
+                    "err_msg": "You must be logged in as author or admin to edit the article"
+                }
+            }))
+        }
+    } catch (error) {
+        console.log(`An error occured while fetching and updating article: ${error}`);
     }
-
-    connectionPromise
-    .then(client => {
-        return client.db('blog_db').collection('article').updateOne(
-            {"_id": new ObjectId(stringID)},
-            {$set: {title: updateTitle, content: updateContent} 
-            });
-    })
-    .then(result => {
-        console.log("then with result entered, result is: ", result);
-        res.status(204).send();
-    })
-    .catch(error => {
-        console.log("there was an error in PATCH handler: ", error);
-    })
+    
 })
 // admin delete 
-app.delete('/admin/delete/:id', async(req, res)=> {
-    let paramData = await req.params;
+app.delete('/admin/delete/:id', auth, async (req, res)=> {
+    console.log("DELETE /admin/delete/:id")
+    let paramData = req.params;
     let stringID = paramData.id;
-    connectionPromise
-    .then(client => {
-        return client.db('blog_db').collection('article').deleteOne(
-            {"_id": new ObjectId(stringID)}
-        );
-    })
-    .then(result =>{
-        console.log("then with result entered, result is: ", result);
-        res.status(204).send();
-    })
-    .catch(error => {
-        console.log("there was an error in DELETe handler: ", error);
-    })
+    console.log(`stringID is ${stringID}`);
+    if (!req.user) {
+        console.log("Unauthenticated user attempted to update article");
+        return res.redirect(url_module.format({
+            pathname: "/login",
+            query: {
+                "err_msg": "You must be logged in to delete the article"
+            }
+        }))
+    } 
+    console.log(`req.user.email is ${req.user.email}`);
+    try {
+        let client = await connectionPromise;
+        let article = client.db("blog_db").collection("article").findOne({"_id": new ObjectId(stringID)});
+        if (req.user.email === credentials.admin_email || req.user.email === article.username) {
+            let deleteResult = await client.db('blog_db').collection('article').deleteOne(
+                {"_id": new ObjectId(stringID)}
+            );
+            console.log(`deleteeResult is ${deleteResult}`);
+            return res.status(204).send();
+        } else {
+            return res.redirect(url_module.format({
+                pathname: "/login",
+                query: {
+                    "err_msg": "You must be logged in as author or admin to delete the article"
+                }
+            }))
+        }
+    } catch (error) {
+        console.log(`An error occured while fetching and deleting article: ${error}`);
+    }
+    
 })
 // admin render add new article
 app.get('/admin/add_new', auth, (req, res) => {
-   res.render('display_admin_add');
-
+    console.log("GET /admin/add_new")
+    if (!req.user) {
+        console.log("Unauthenticated user attempted to update article");
+        return res.redirect(url_module.format({
+            pathname: "/login",
+            query: {
+                "err_msg": "You must be logged in to delete the article"
+            }
+        }))
+    } else {
+        console.log(`req.user.email is ${req.user.email}`);
+        return res.render('display_admin_add');
+    }
 })
 
 
 // admin add new article 
-app.post('/admin/add_new', (req,res) => {
-    newTitle = req.body.title;
-    newContent = req.body.content;
-    connectionPromise
-    .then(client => {
-        return client.db('blog_db').collection('article').insertOne(
-            {title: newTitle, content: newContent
-            });
-    })
-    .then(result => {
-        res.redirect('/')
-    })
-})
-
-// user render new article handlebar
-app.get('/user/add_new', atuh, (req,res) => {
-    res.render('display_user_add');
-})
-
-// user add new article
-app.post('/user/add_new', (req,res) =>{
-    user = req.body.username;
-    newTitle = req.body.title;
-    newContent = req.body.content;
-    connectionPromise
-    .then(client => {
-        return client.db('blog_db').collection('article').insertOne({
-            username: username, title: newTitle, content: newContent
-        });
-    })
-    .then(result => {
-        res.redirect('/')
-    })
+app.post('/admin/add_new', auth, (req,res) => {
+    console.log("POST /admin/add_new");
+    if (!req.user) {
+        console.log("Unauthenticated user attempted to update article");
+        return res.redirect(url_module.format({
+            pathname: "/login",
+            query: {
+                "err_msg": "You must be logged in to delete the article"
+            }
+        }))
+    } else {
+        console.log(`req.user.email is ${req.user.email}`);
+        newTitle = req.body.title;
+        newContent = req.body.content;
+        console.log(`newTitle is ${newTitle}, newContent is ${newContent}`);
+        connectionPromise
+        .then(client => {
+            return client.db('blog_db').collection('article').insertOne({title: newTitle, username:req.user.email, content: newContent});
+        })
+        .then(result => {
+            res.redirect('/admin')
+        })
+        .catch(error => {
+            console.log(`An error occurred while adding article to db: ${error}`);
+        })
+    }
+    
 })
 
 
@@ -384,7 +419,7 @@ app.post("/registration_form_handler", async (req, res) => {
         }
     })
     .catch(error => {
-        res.status(500).send("Internal server error, could not fetch user from db");
+        res.status(500).send("Internal server error, could not fetch user from db: ", error);
     })
 
 
@@ -460,7 +495,7 @@ app.post("/login_form_handler", async (req, res) => {
     );
 
     res.cookie("AuthToken", authToken);
-    res.redirect("/protected");
+    res.redirect("/admin");
 
 })
 
@@ -480,7 +515,7 @@ app.get("/register_admin", (req, res) => {
 
 app.get("/protected", auth, (req, res) => {
     console.log("GET /protected");
-    console.log(`req.user is ${req.user}`);
+    console.log("reg.user is: ", req.user);
     if (req.user) {
         res.json({"login": "success"});
     }
