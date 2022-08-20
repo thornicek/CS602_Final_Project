@@ -1,6 +1,6 @@
 # My Final Project
 
-For my final project, I decided to make a blogging application. Features include:
+For my final project, I decided to make a blogging application, using Express and MongoDB. Features include:
  - A regular view of the blog for unauthenticated users
  - The ability for unauthenticated users to leave comments on articles
  - The ability for users to register their own accounts and contribute to the blog. User passwords are stored hashed, to increase security of the website. Authentication is then handled using JSON Web Tokens. When the user logs in with their correct credentials, a JWT is created and injected into their cookies. The JWT is set to expire in one hour. If you want to test both authenticated and unauthenticated views of pages, you can use anonymous browsing mode. Pages which should only be available to authenticated users will redirect to the login page if an unauthenticated user attempts to browse them.
