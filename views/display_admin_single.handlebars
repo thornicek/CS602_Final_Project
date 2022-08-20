@@ -25,12 +25,22 @@
             window.location.assign(`/admin`)
         })
     }
+    function sendDeleteRequest(id) {
+        fetch(`/admin/delete/${id}`,{
+            method: 'DELETE'
+        })
+        .then(response =>{
+            window.location.assign(`/admin`)
+        })
+    }
+
+
     const url = window.location.href;
-    // console.log(`url is ${url}`);
+    console.log(`url is ${url}`);
     const urlArray = url.split("/");
-    // console.log("urlArray is ", urlArray);
+    console.log("urlArray is ", urlArray);
     const id = urlArray[urlArray.length - 1];
-    // console.log(`id is ${id}`);
+    console.log(`id is ${id}`);
     const textArea = document.getElementById("contentTxtArea");
     const titleInput = document.getElementById("titleInput");
     const submitBtn = document.getElementById("submitBtn");
@@ -43,18 +53,8 @@
     titleInput.addEventListener("change", event => {
         titleInput.value = event.target.value;
     })
+
     // send DELETE request to server
-    function sendDeleteRequest(id){
-        fetch(`/admin/delete/${id}`,{
-            method: 'DELETE'
-        })
-        .then(response =>{
-            window.location.assign(`/admin`)
-        })
-        console.log(`url is ${url}`);
-        console.log("urlArray is ", urlArray);
-        console.log(`id is ${id}`);
-    }
     const deleteBtn = document.getElementById("deleteBtn");
     deleteBtn.addEventListener("click", () => {
         sendDeleteRequest(id)

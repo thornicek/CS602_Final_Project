@@ -182,7 +182,7 @@ app.get('/admin', auth, (req, res) => {
             return client.db("blog_db").collection('article').find({});
         }
         else {
-            return client.db("blog_db").collection('artcile').find({username: req.user.email});
+            return client.db("blog_db").collection('article').find({username: req.user.email});
         }
     })
     .then(cursor => {
@@ -299,7 +299,7 @@ app.delete('/admin/delete/:id', auth, async (req, res)=> {
     console.log(`req.user.email is ${req.user.email}`);
     try {
         let client = await connectionPromise;
-        let article = client.db("blog_db").collection("article").findOne({"_id": new ObjectId(stringID)});
+        let article = await client.db("blog_db").collection("article").findOne({"_id": new ObjectId(stringID)});
         if (req.user.email === credentials.admin_email || req.user.email === article.username) {
             let deleteResult = await client.db('blog_db').collection('article').deleteOne(
                 {"_id": new ObjectId(stringID)}
@@ -355,7 +355,7 @@ app.post('/admin/add_new', auth, (req,res) => {
         console.log(`newTitle is ${newTitle}, newContent is ${newContent}`);
         connectionPromise
         .then(client => {
-            return client.db('blog_db').collection('article').insertOne({title: newTitle, username:req.user.email, content: newContent});
+            return client.db('blog_db').collection('article').insertOne({title: newTitle, username:req.user.email, content: newContent, comments: []});
         })
         .then(result => {
             res.redirect('/admin')
